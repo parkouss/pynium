@@ -27,7 +27,7 @@ playing with pynium
   py.test tests/
 
 
-Look at the testing code
-========================
+Samples of testing code
+=======================
 
-The actual code required to run the tests can be found under the tests/ folder.
+You can look at some sample test code, provided in the test-samples/ folder.

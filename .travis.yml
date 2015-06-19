@@ -5,8 +5,7 @@ python:
     - "3.4"
 
 install:
-    - pip install -e .
-    - pip install flake8
+    - pip install -r tests-requirements.txt
 
 before_script:
     flake8 pynium tests
