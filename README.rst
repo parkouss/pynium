@@ -5,6 +5,10 @@ Some testing around py.test and python selenium integration. For now,
 just to see what I could do with that.
 
 
+.. image:: https://travis-ci.org/parkouss/pynium.svg?branch=master
+    :target: https://travis-ci.org/parkouss/pynium
+
+
 playing with pynium
 ===================
 
