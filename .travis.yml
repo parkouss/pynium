@@ -8,4 +8,4 @@ install:
     - pip install -e .
 
 script:
-    - py.test tests/ --driver PhantomJS
+    - py.test tests/ --webdriver PhantomJS
