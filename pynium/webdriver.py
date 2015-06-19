@@ -8,6 +8,7 @@ from selenium.webdriver.remote.webdriver import WebDriver as RemoteWebDriver, \
 
 from selenium import webdriver
 
+
 class EWebDriver(object):
     """
     Extended web driver mixin.
@@ -45,14 +46,14 @@ class EWebElement(WebElement):
             )
 
 
-
 _CLASSES = {}
+
 
 def extended(driver_class):
     global _CLASSES
 
     if isinstance(driver_class, str):
-        driver_class = getattr(webdriver, driver_class) 
+        driver_class = getattr(webdriver, driver_class)
     try:
         return _CLASSES[driver_class]
     except KeyError:

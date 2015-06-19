@@ -6,6 +6,10 @@ python:
 
 install:
     - pip install -e .
+    - pip install flake8
+
+before_script:
+    flake8 pynium tests
 
 script:
     - py.test tests/ --webdriver PhantomJS
