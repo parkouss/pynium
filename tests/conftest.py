@@ -38,3 +38,8 @@ def http_server(http_root_dir):
     yield base_url
     p.terminate()
     p.join()
+
+
+@pytest.fixture(scope='session')
+def default_driver():
+    return 'phantomjs'

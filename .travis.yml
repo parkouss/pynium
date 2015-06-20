@@ -4,6 +4,12 @@ python:
     - "2.7"
     - "3.4"
 
+before_install:
+    - "sudo apt-get install -qq xvfb"
+    - "export DISPLAY=:99.0"
+    - "sh -e /etc/init.d/xvfb start"
+    - sleep 5
+
 install:
     - pip install -r tests-requirements.txt
 
@@ -11,4 +17,4 @@ before_script:
     flake8 pynium tests
 
 script:
-    - py.test tests/ --webdriver phantomjs
+    - py.test tests/ -s
