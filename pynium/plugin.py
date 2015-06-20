@@ -10,6 +10,11 @@ def pytest_addoption(parser):
                      help="Web driver to use, default to %(default)s."
                           " Not you can use multiple drivers by separating"
                           " tem using commas. Exemple: firefox, phantomjs")
+    parser.addoption("--implicit-wait",
+                     help="poll the DOM for a certain amount of time when"
+                          " trying to find an element or elements if they are"
+                          " not immediately available. Default is 5 seconds.",
+                     action="store", type="int", default=5)
     parser.addoption("--session-scoped-browser",
                      help="should use a single browser instance per test"
                      " session. Defaults to true.", action="store",
@@ -28,6 +33,12 @@ def pytest_addoption(parser):
                      help="phantomjs executable path. Defaults to"
                           " unspecified in which case it is taken"
                           " from PATH", action="store")
+
+
+@pytest.fixture(scope='session')
+def implicit_wait(request):
+    """Implicit wait."""
+    return request.config.option.implicit_wait
 
 
 @pytest.fixture(scope='session')
@@ -99,7 +110,7 @@ def browser_pool(request):
 
 @pytest.fixture(scope='session')
 def browser_instance_getter(session_scoped_browser, browser_pool,
-                            phantomjs_executable):
+                            phantomjs_executable, implicit_wait):
     """
     Function to create an instance of the browser.
 
@@ -125,7 +136,9 @@ def browser_instance_getter(session_scoped_browser, browser_pool,
             if phantomjs_executable:
                 print("phantomjs_executable")
                 kwargs['executable_path'] = phantomjs_executable
-        return factory.create(**kwargs)
+        browser = factory.create(**kwargs)
+        browser.implicitly_wait(implicit_wait)
+        return browser
 
     def prepare_browser(request, parent, webdriver=None):
         # if webdriver is None, assume we have only one in conf
