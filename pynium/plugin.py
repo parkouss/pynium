@@ -7,7 +7,9 @@ from pynium.webdriver import get_driver_factory, DriverFactory
 
 def pytest_addoption(parser):
     parser.addoption("--webdriver", action="store", default='firefox',
-                     help="Web driver to use, default to %(default)s")
+                     help="Web driver to use, default to %(default)s."
+                          " Not you can use multiple drivers by separating"
+                          " tem using commas. Exemple: firefox, phantomjs")
     parser.addoption("--session-scoped-browser",
                      help="should use a single browser instance per test"
                      " session. Defaults to true.", action="store",
@@ -109,18 +111,17 @@ def browser_instance_getter(session_scoped_browser, browser_pool):
         return factory.create()
 
     def prepare_browser(request, parent, webdriver=None):
+        # if webdriver is None, assume we have only one in conf
         webdriver = webdriver or request.config.option.webdriver
         parentid = id(parent)
         browser = browser_pool.get(webdriver, parentid)
         clear_browser = True
         if not session_scoped_browser:
-            print('not session scoped')
             browser = get_browser(webdriver)
             request.addfinalizer(lambda: browser.__factory__.quit(browser))
             clear_browser = False
         elif not browser:
-            if not webdriver in browser_pool.pool:
-                print('cleaned')
+            if webdriver not in browser_pool.pool:
                 # we switched the browser, clear every other instances first
                 browser_pool.clear()
             browser = get_browser(webdriver)
@@ -138,8 +139,9 @@ def pytest_generate_tests(metafunc):
     if 'browser' in metafunc.fixturenames:
         drivernames = metafunc.config.option.webdriver.split(',')
         if len(drivernames) <= 1:
-            # do not paramtrize if we only have one dirver
+            # do not paramtrize if we only have one driver
             return
+        # scope for the session if wanted
         scope = None
         if session_scoped_browser(metafunc):
             scope = "session"
