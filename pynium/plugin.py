@@ -1,11 +1,11 @@
 import os
 import pytest
 from _pytest import junitxml
-from pynium.webdriver import extended as extended_webdriver, EWebDriver
+from pynium.webdriver import get_driver_class, EWebDriver
 
 
 def pytest_addoption(parser):
-    parser.addoption("--webdriver", action="store", default='Firefox',
+    parser.addoption("--webdriver", action="store", default='firefox',
                      help="Web driver to use, default to %(default)s")
     parser.addoption("--session-scoped-browser",
                      help="should use a single browser instance per test"
@@ -91,7 +91,7 @@ def browser_instance_getter(session_scoped_browser, webdriver, browser_pool):
           admin_browser.get('http://admin.example.com')
     """
     def get_browser():
-        browser_class = extended_webdriver(webdriver)
+        browser_class = get_driver_class(webdriver)
         return browser_class()
 
     def prepare_browser(request, parent):

@@ -6,6 +6,9 @@ from selenium.common.exceptions import InvalidSelectorException
 from selenium.webdriver.remote.webdriver import WebDriver as RemoteWebDriver, \
     WebElement
 
+from selenium.webdriver import Firefox, Chrome, Ie, Opera, Safari, \
+    BlackBerry, PhantomJS, Android
+
 from selenium import webdriver
 
 
@@ -46,20 +49,45 @@ class EWebElement(WebElement):
             )
 
 
-_CLASSES = {}
+class firefox(EWebDriver, Firefox):
+    pass
 
 
-def extended(driver_class):
-    global _CLASSES
+class chrome(EWebDriver, Chrome):
+    pass
 
-    if isinstance(driver_class, str):
-        driver_class = getattr(webdriver, driver_class)
-    try:
-        return _CLASSES[driver_class]
-    except KeyError:
-        pass
-    # seems like concrete webdrivers are all subclass of RemoteWebDriver
-    assert issubclass(driver_class, RemoteWebDriver)
-    klass = type(driver_class.__name__, (EWebDriver, driver_class), {})
-    _CLASSES[driver_class] = klass
-    return klass
+
+class ie(EWebDriver, Ie):
+    pass
+
+
+class opera(EWebDriver, Opera):
+    pass
+
+
+class safari(EWebDriver, Safari):
+    pass
+
+
+class blackberry(EWebDriver, BlackBerry):
+    pass
+
+
+class phantomjs(EWebDriver, PhantomJS):
+    pass
+
+
+class android(EWebDriver, Android):
+    pass
+
+
+class remote(EWebDriver, RemoteWebDriver):
+    pass
+
+
+_CLASSES = dict(firefox=firefox, chrome=chrome, ie=ie, opera=opera,
+                safari=safari, blackberry=blackberry, phantomjs=phantomjs,
+                android=android, remote=remote)
+
+def get_driver_class(name):
+    return _CLASSES[name]
