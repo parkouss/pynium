@@ -41,5 +41,5 @@ def http_server(http_root_dir):
 
 
 @pytest.fixture(scope='session')
-def default_driver():
-    return 'phantomjs'
+def default_drivers():
+    return ('phantomjs', 'firefox')

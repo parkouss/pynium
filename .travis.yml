@@ -17,4 +17,4 @@ before_script:
     flake8 pynium tests
 
 script:
-    - py.test tests/ -s
+    - py.test tests/ -v
