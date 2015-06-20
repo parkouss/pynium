@@ -1,0 +1,12 @@
+build: false
+environment:
+  matrix:
+    - PYTHON: "C:/Python27"
+init:
+  - "ECHO %PYTHON%"
+install:
+  - "%PYTHON%/Scripts/pip.exe install -r tests-requirements.txt"
+  # Install PhantomJS
+  - cinst PhantomJS -y
+test_script:
+  - "%PYTHON%/Scripts/py.test tests -v"
