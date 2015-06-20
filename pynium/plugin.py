@@ -1,7 +1,8 @@
 import os
 import pytest
 from _pytest import junitxml
-from pynium.webdriver import get_driver_class, EWebDriver
+from collections import defaultdict
+from pynium.webdriver import get_driver_factory, DriverFactory
 
 
 def pytest_addoption(parser):
@@ -21,14 +22,6 @@ def pytest_addoption(parser):
                      help="browser screenshot directory."
                      " Defaults to the current directory.", action="store",
                      metavar="DIR", default='.')
-
-
-@pytest.fixture(scope='session')
-def webdriver(request):
-    """
-    webdriver name fixture.
-    """
-    return request.config.option.webdriver
 
 
 @pytest.fixture(scope='session')
@@ -55,23 +48,44 @@ def session_scoped_browser(request):
     return request.config.option.session_scoped_browser == 'true'
 
 
+class BrowserPool(object):
+    def __init__(self):
+        self.pool = defaultdict(dict)
+
+    def register(self, browsername, parentid, browser):
+        self.pool[browsername][parentid] = browser
+
+    def get(self, browsername, parentid):
+        if browsername not in self.pool:
+            return None
+        try:
+            return self.pool[browsername][parentid]
+        except KeyError:
+            return None
+
+    def clear(self):
+        for k in self.pool.keys():
+            for browser in self.pool[k].values():
+                try:
+                    browser.__factory__.quit(browser)
+                except (IOError, OSError):
+                    pass
+        self.pool.clear()
+
+
 @pytest.yield_fixture(scope='session')
 def browser_pool(request):
     """
     Browser 'pool' to emulate session scope but with possibility to recreate
     browser.
     """
-    pool = {}
+    pool = BrowserPool()
     yield pool
-    for browser in pool.values():
-        try:
-            browser.quit()
-        except (IOError, OSError):
-            pass
+    pool.clear()
 
 
 @pytest.fixture(scope='session')
-def browser_instance_getter(session_scoped_browser, webdriver, browser_pool):
+def browser_instance_getter(session_scoped_browser, browser_pool):
     """
     Function to create an instance of the browser.
 
@@ -90,27 +104,52 @@ def browser_instance_getter(session_scoped_browser, webdriver, browser_pool):
           browser.get('http://google.com')
           admin_browser.get('http://admin.example.com')
     """
-    def get_browser():
-        browser_class = get_driver_class(webdriver)
-        return browser_class()
+    def get_browser(webdriver):
+        factory = get_driver_factory(webdriver)
+        return factory.create()
 
-    def prepare_browser(request, parent):
-        browser_key = id(parent)
-        browser = browser_pool.get(browser_key)
+    def prepare_browser(request, parent, webdriver=None):
+        webdriver = webdriver or request.config.option.webdriver
+        parentid = id(parent)
+        browser = browser_pool.get(webdriver, parentid)
         clear_browser = True
         if not session_scoped_browser:
-            browser = get_browser()
-            request.addfinalizer(browser.quit)
+            print('not session scoped')
+            browser = get_browser(webdriver)
+            request.addfinalizer(lambda: browser.__factory__.quit(browser))
             clear_browser = False
         elif not browser:
-            browser = browser_pool[browser_key] = get_browser()
+            if not webdriver in browser_pool.pool:
+                print('cleaned')
+                # we switched the browser, clear every other instances first
+                browser_pool.clear()
+            browser = get_browser(webdriver)
+            browser_pool.register(webdriver, parentid, browser)
             clear_browser = False
         if clear_browser:
             # browser.manage().deleteAllCookies()
-            browser.get('about:blank')
+            browser.__factory__.clear(browser)
         return browser
 
     return prepare_browser
+
+
+def pytest_generate_tests(metafunc):
+    if 'browser' in metafunc.fixturenames:
+        drivernames = metafunc.config.option.webdriver.split(',')
+        if len(drivernames) <= 1:
+            # do not paramtrize if we only have one dirver
+            return
+        scope = None
+        if session_scoped_browser(metafunc):
+            scope = "session"
+        metafunc.parametrize("browser", drivernames, scope=scope,
+                             indirect=True)
+
+
+def pytest_funcarg__browser(request, browser_instance_getter):
+    drivername = getattr(request, 'param', None)
+    return browser_instance_getter(request, pytest_generate_tests, drivername)
 
 
 @pytest.mark.tryfirst
@@ -135,7 +174,7 @@ def browser_screenshot(request, screenshot_dir, make_screenshot_on_failure):
         return
     for name, value in request._funcargs.items():
         # find instance of webdriver in function args
-        if isinstance(value, EWebDriver):
+        if isinstance(getattr(value, '__factory__', None), DriverFactory):
             browser = value
             names = junitxml.mangle_testnames(request.node.nodeid.split("::"))
             classname = '.'.join(names[:-1])
@@ -148,16 +187,8 @@ def browser_screenshot(request, screenshot_dir, make_screenshot_on_failure):
             screenshot_path = \
                 os.path.join(screenshot_dir, screenshot_file_name)
             try:
-                browser.save_screenshot(screenshot_path)
+                browser.__factory__.save_screenshot(browser, screenshot_path)
             except Exception as e:
                 request.config.warn(
                     'SPL504', "Could not save screenshot: %s" % e
                 )
-
-
-@pytest.fixture
-def browser(request, browser_instance_getter):
-    """
-    Browser fixture.
-    """
-    return browser_instance_getter(request, browser)

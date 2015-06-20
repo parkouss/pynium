@@ -9,8 +9,6 @@ from selenium.webdriver.remote.webdriver import WebDriver as RemoteWebDriver, \
 from selenium.webdriver import Firefox, Chrome, Ie, Opera, Safari, \
     BlackBerry, PhantomJS, Android
 
-from selenium import webdriver
-
 
 class EWebDriver(object):
     """
@@ -85,9 +83,40 @@ class remote(EWebDriver, RemoteWebDriver):
     pass
 
 
-_CLASSES = dict(firefox=firefox, chrome=chrome, ie=ie, opera=opera,
-                safari=safari, blackberry=blackberry, phantomjs=phantomjs,
-                android=android, remote=remote)
+class DriverFactory(object):
+    def __init__(self, driver_class):
+        self.driver_class = driver_class
 
-def get_driver_class(name):
-    return _CLASSES[name]
+    def _create(self, *args, **kwargs):
+        return self.driver_class(*args, **kwargs)
+
+    def create(self, *args, **kwargs):
+        instance = self._create(*args, **kwargs)
+        instance.__factory__ = self
+        return instance
+
+    def clear(self, instance):
+        # naive implementation
+        instance.get('about:blank')
+
+    def save_screenshot(self, instance, screenshot_path):
+        instance.save_screenshot(screenshot_path)
+
+    def quit(self, instance):
+        instance.quit()
+
+
+_factories = {}
+
+
+def get_driver_factory(name):
+    return _factories[name]
+
+
+def register_driver_factory(name, factory):
+    _factories[name] = factory
+
+
+for klass in (firefox, chrome, ie, opera, safari, blackberry, phantomjs,
+              android, remote):
+    register_driver_factory(klass.__name__, DriverFactory(klass))
