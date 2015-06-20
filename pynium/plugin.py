@@ -121,8 +121,6 @@ def pytest_runtest_makereport(item, call, __multicall__):
     rep = __multicall__.execute()
     if rep.outcome != 'passed':
         item.selenium_failure = rep
-    else:
-        item.selenium_failure = None
     return rep
 
 
@@ -132,7 +130,8 @@ def browser_screenshot(request, screenshot_dir, make_screenshot_on_failure):
     Make browser screenshot on test failure.
     """
     yield
-    if not (make_screenshot_on_failure and request.node.selenium_failure):
+    if not (make_screenshot_on_failure and
+            getattr(request.node, 'selenium_failure', None)):
         return
     for name, value in request._funcargs.items():
         # find instance of webdriver in function args

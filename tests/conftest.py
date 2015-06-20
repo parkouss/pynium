@@ -3,6 +3,9 @@ import pytest
 from multiprocessing import Process, Pipe
 
 
+pytest_plugins = 'pytester'
+
+
 def run_server(conn, http_root_dir):
     from six.moves import SimpleHTTPServer
     from six.moves import socketserver
@@ -17,8 +20,13 @@ def run_server(conn, http_root_dir):
 
 
 @pytest.fixture(scope='session')
-def http_root_dir():
+def tests_dir():
     return os.path.dirname(os.path.realpath(__file__))
+
+
+@pytest.fixture(scope='session')
+def http_root_dir(tests_dir):
+    return os.path.join(tests_dir, 'http_root')
 
 
 @pytest.yield_fixture(scope='session')
@@ -30,6 +38,3 @@ def http_server(http_root_dir):
     yield base_url
     p.terminate()
     p.join()
-
-
-pytest_plugins = 'pytester'
