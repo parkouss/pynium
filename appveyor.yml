@@ -9,4 +9,4 @@ install:
   # Install PhantomJS
   - cinst PhantomJS -y
 test_script:
-  - "%PYTHON%/Scripts/py.test tests -v"
+  - "%PYTHON%/Scripts/py.test tests -v --phantomjs-executable C:/Chocolatey/lib/PhantomJS.2.0.0/tools/phantomjs-2.0.0-windows/bin/phantomjs.exe"
