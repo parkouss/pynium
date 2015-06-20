@@ -24,6 +24,17 @@ def pytest_addoption(parser):
                      help="browser screenshot directory."
                      " Defaults to the current directory.", action="store",
                      metavar="DIR", default='.')
+    parser.addoption("--phantomjs-executable",
+                     help="phantomjs executable path. Defaults to"
+                          " unspecified in which case it is taken"
+                          " from PATH", action="store")
+
+
+@pytest.fixture(scope='session')
+def phantomjs_executable(request):
+    """Webdriver executable directory."""
+    executable = request.config.option.phantomjs_executable
+    return os.path.abspath(executable) if executable else None
 
 
 @pytest.fixture(scope='session')
@@ -87,7 +98,8 @@ def browser_pool(request):
 
 
 @pytest.fixture(scope='session')
-def browser_instance_getter(session_scoped_browser, browser_pool):
+def browser_instance_getter(session_scoped_browser, browser_pool,
+                            phantomjs_executable):
     """
     Function to create an instance of the browser.
 
@@ -108,7 +120,12 @@ def browser_instance_getter(session_scoped_browser, browser_pool):
     """
     def get_browser(webdriver):
         factory = get_driver_factory(webdriver)
-        return factory.create()
+        kwargs = {}
+        if webdriver == 'phantomjs':
+            if phantomjs_executable:
+                print("phantomjs_executable")
+                kwargs['executable_path'] = phantomjs_executable
+        return factory.create(**kwargs)
 
     def prepare_browser(request, parent, webdriver=None):
         # if webdriver is None, assume we have only one in conf
