@@ -22,8 +22,3 @@ def http_server(httpserver, http_root_dir):
             httpserver.serve_content(f.read())
     httpserver.serve_local_file = serve_local_file
     return httpserver
-
-
-@pytest.fixture(scope='session')
-def default_drivers():
-    return ('firefox', 'phantomjs')

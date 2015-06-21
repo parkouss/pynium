@@ -1,15 +1,12 @@
 import os
 import pytest
 from _pytest import junitxml
-from collections import defaultdict
 from pynium.webdriver import get_driver_factory, DriverFactory
 
 
 def pytest_addoption(parser):
     parser.addoption("--webdriver", action="store", default='firefox',
-                     help="Web driver to use, default to %(default)s."
-                          " Not you can use multiple drivers by separating"
-                          " tem using commas. Exemple: firefox, phantomjs")
+                     help="Web driver to use, default to %(default)s.")
     parser.addoption("--implicit-wait",
                      help="poll the DOM for a certain amount of time when"
                           " trying to find an element or elements if they are"
@@ -29,10 +26,15 @@ def pytest_addoption(parser):
                      help="browser screenshot directory."
                      " Defaults to the current directory.", action="store",
                      metavar="DIR", default='.')
-    parser.addoption("--phantomjs-executable",
-                     help="phantomjs executable path. Defaults to"
+    parser.addoption("--webdriver-executable",
+                     help="webdriver executable path. Defaults to"
                           " unspecified in which case it is taken"
                           " from PATH", action="store")
+
+
+@pytest.fixture(scope='session')
+def webdriver(request):
+    return request.config.option.webdriver
 
 
 @pytest.fixture(scope='session')
@@ -42,9 +44,9 @@ def implicit_wait(request):
 
 
 @pytest.fixture(scope='session')
-def phantomjs_executable(request):
-    """Webdriver executable directory."""
-    executable = request.config.option.phantomjs_executable
+def webdriver_executable(request):
+    """Webdriver executable path."""
+    executable = request.config.option.webdriver_executable
     return os.path.abspath(executable) if executable else None
 
 
@@ -72,45 +74,24 @@ def session_scoped_browser(request):
     return request.config.option.session_scoped_browser == 'true'
 
 
-class BrowserPool(object):
-    def __init__(self):
-        self.pool = defaultdict(dict)
-
-    def register(self, browsername, parentid, browser):
-        self.pool[browsername][parentid] = browser
-
-    def get(self, browsername, parentid):
-        if browsername not in self.pool:
-            return None
-        try:
-            return self.pool[browsername][parentid]
-        except KeyError:
-            return None
-
-    def clear(self):
-        for k in self.pool.keys():
-            for browser in self.pool[k].values():
-                try:
-                    browser.__factory__.quit(browser)
-                except (IOError, OSError):
-                    pass
-        self.pool.clear()
-
-
 @pytest.yield_fixture(scope='session')
 def browser_pool(request):
     """
     Browser 'pool' to emulate session scope but with possibility to recreate
     browser.
     """
-    pool = BrowserPool()
+    pool = {}
     yield pool
-    pool.clear()
+    for browser in pool.values():
+        try:
+            browser.__factory__.quit(browser)
+        except (IOError, OSError):
+            pass
 
 
 @pytest.fixture(scope='session')
 def browser_instance_getter(session_scoped_browser, browser_pool,
-                            phantomjs_executable, implicit_wait):
+                            webdriver_executable, implicit_wait, webdriver):
     """
     Function to create an instance of the browser.
 
@@ -132,30 +113,23 @@ def browser_instance_getter(session_scoped_browser, browser_pool,
     def get_browser(webdriver):
         factory = get_driver_factory(webdriver)
         kwargs = {}
-        if webdriver == 'phantomjs':
-            if phantomjs_executable:
-                print("phantomjs_executable")
-                kwargs['executable_path'] = phantomjs_executable
+        if webdriver_executable:
+            kwargs['executable_path'] = webdriver_executable
         browser = factory.create(**kwargs)
         browser.implicitly_wait(implicit_wait)
         return browser
 
-    def prepare_browser(request, parent, webdriver=None):
-        # if webdriver is None, assume we have only one in conf
-        webdriver = webdriver or request.config.option.webdriver
+    def prepare_browser(request, parent):
         parentid = id(parent)
-        browser = browser_pool.get(webdriver, parentid)
+        browser = browser_pool.get(parentid)
         clear_browser = True
         if not session_scoped_browser:
             browser = get_browser(webdriver)
             request.addfinalizer(lambda: browser.__factory__.quit(browser))
             clear_browser = False
         elif not browser:
-            if webdriver not in browser_pool.pool:
-                # we switched the browser, clear every other instances first
-                browser_pool.clear()
             browser = get_browser(webdriver)
-            browser_pool.register(webdriver, parentid, browser)
+            browser_pool[parentid] = browser
             clear_browser = False
         if clear_browser:
             # browser.manage().deleteAllCookies()
@@ -163,25 +137,6 @@ def browser_instance_getter(session_scoped_browser, browser_pool,
         return browser
 
     return prepare_browser
-
-
-def pytest_generate_tests(metafunc):
-    if 'browser' in metafunc.fixturenames:
-        drivernames = metafunc.config.option.webdriver.split(',')
-        if len(drivernames) <= 1:
-            # do not paramtrize if we only have one driver
-            return
-        # scope for the session if wanted
-        scope = None
-        if session_scoped_browser(metafunc):
-            scope = "session"
-        metafunc.parametrize("browser", drivernames, scope=scope,
-                             indirect=True)
-
-
-def pytest_funcarg__browser(request, browser_instance_getter):
-    drivername = getattr(request, 'param', None)
-    return browser_instance_getter(request, pytest_generate_tests, drivername)
 
 
 @pytest.mark.tryfirst
@@ -224,3 +179,11 @@ def browser_screenshot(request, screenshot_dir, make_screenshot_on_failure):
                 request.config.warn(
                     'SPL504', "Could not save screenshot: %s" % e
                 )
+
+
+@pytest.fixture
+def browser(request, browser_instance_getter):
+    """
+    Browser fixture.
+    """
+    return browser_instance_getter(request, browser)

@@ -6,7 +6,5 @@ init:
   - "ECHO %PYTHON%"
 install:
   - "%PYTHON%/Scripts/pip.exe install -r tests-requirements.txt"
-  # Install PhantomJS
-  - cinst PhantomJS -y
 test_script:
-  - "%PYTHON%/Scripts/py.test tests -v --phantomjs-executable C:\\ProgramData\\chocolatey\\bin\\phantomjs.exe"
+  - "%PYTHON%/Scripts/py.test tests -v"
